@@ -1,0 +1,5 @@
+{
+  "watch": ["src/"],
+  "ignore": ["venv/", "node_modules/", "uploads/", "__pycache__/", "*.py"],
+  "ext": "js,json"
+}

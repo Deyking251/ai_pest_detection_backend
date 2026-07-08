@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CropGuard AI — Admin Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+    :root {
+      --bg: #0a0e1a; --surface: #111827; --surface2: #1a2236;
+      --border: rgba(255,255,255,.08); --text: #e2e8f0; --text2: #94a3b8;
+      --text3: #64748b; --primary: #22c55e; --primary-glow: rgba(34,197,94,.15);
+      --accent: #3b82f6; --warning: #f59e0b; --error: #ef4444;
+      --gradient: linear-gradient(135deg, #22c55e, #16a34a);
+      --radius: 16px; --radius-sm: 10px;
+    }
+    body { font-family:'Inter',sans-serif; background:var(--bg); color:var(--text); min-height:100vh; }
+
+    /* ── Login Overlay ── */
+    #loginOverlay {
+      position:fixed; inset:0; z-index:1000; background:var(--bg);
+      display:flex; align-items:center; justify-content:center;
+    }
+    .login-card {
+      background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+      padding:40px; width:380px; text-align:center;
+    }
+    .login-card .logo { width:56px; height:56px; background:var(--gradient); border-radius:14px;
+      display:inline-flex; align-items:center; justify-content:center; font-size:28px; margin-bottom:20px; }
+    .login-card h2 { font-size:22px; font-weight:700; margin-bottom:6px; }
+    .login-card p { color:var(--text2); font-size:13px; margin-bottom:24px; }
+    .login-card input {
+      width:100%; padding:12px 16px; background:var(--surface2); border:1px solid var(--border);
+      border-radius:var(--radius-sm); color:var(--text); font-size:14px; outline:none;
+      margin-bottom:16px; transition:.2s;
+    }
+    .login-card input:focus { border-color:var(--primary); }
+    .login-card .login-btn {
+      width:100%; padding:12px; background:var(--gradient); border:none; border-radius:var(--radius-sm);
+      color:#fff; font-weight:700; font-size:14px; cursor:pointer; transition:.2s;
+    }
+    .login-card .login-btn:hover { opacity:.9; transform:translateY(-1px); }
+    .login-error { color:var(--error); font-size:12px; margin-bottom:12px; display:none; }
+
+    /* ── Layout ── */
+    .app { display:flex; min-height:100vh; }
+    .sidebar {
+      width:260px; background:var(--surface); border-right:1px solid var(--border);
+      padding:24px 16px; display:flex; flex-direction:column; position:fixed; top:0; bottom:0;
+    }
+    .sidebar .brand { display:flex; align-items:center; gap:12px; margin-bottom:32px; padding:0 8px; }
+    .sidebar .brand-icon { width:40px; height:40px; background:var(--gradient); border-radius:12px;
+      display:flex; align-items:center; justify-content:center; font-size:20px; }
+    .sidebar .brand h1 { font-size:16px; font-weight:800; }
+    .sidebar .brand span { font-size:11px; color:var(--text3); }
+    .nav-item {
+      padding:10px 14px; border-radius:var(--radius-sm); cursor:pointer; font-size:13px;
+      font-weight:500; color:var(--text2); display:flex; align-items:center; gap:10px;
+      margin-bottom:4px; transition:.15s;
+    }
+    .nav-item:hover { background:var(--surface2); color:var(--text); }
+    .nav-item.active { background:var(--primary-glow); color:var(--primary); font-weight:600; }
+    .nav-item .dot { width:8px; height:8px; border-radius:50%; }
+    .sidebar-footer { margin-top:auto; padding:16px 8px; border-top:1px solid var(--border); }
+    .sidebar-footer .logout-btn {
+      width:100%; padding:10px; background:var(--surface2); border:1px solid var(--border);
+      border-radius:var(--radius-sm); color:var(--error); font-size:13px; font-weight:600;
+      cursor:pointer; transition:.15s;
+    }
+    .sidebar-footer .logout-btn:hover { background:rgba(239,68,68,.1); }
+
+    .main { margin-left:260px; flex:1; padding:28px 32px; }
+    .page-title { font-size:24px; font-weight:800; margin-bottom:4px; }
+    .page-subtitle { font-size:13px; color:var(--text3); margin-bottom:24px; }
+
+    /* ── Stat Cards ── */
+    .stats-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:16px; margin-bottom:28px; }
+    .stat-card {
+      background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+      padding:20px; transition:.2s;
+    }
+    .stat-card:hover { border-color:rgba(255,255,255,.15); transform:translateY(-2px); }
+    .stat-card .label { font-size:12px; color:var(--text3); font-weight:500; text-transform:uppercase; letter-spacing:.5px; }
+    .stat-card .value { font-size:32px; font-weight:800; margin:8px 0 4px; }
+    .stat-card .sub { font-size:11px; color:var(--text2); }
+    .stat-card.green .value { color:var(--primary); }
+    .stat-card.blue .value { color:var(--accent); }
+    .stat-card.yellow .value { color:var(--warning); }
+
+    /* ── Tables ── */
+    .card {
+      background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+      padding:20px; margin-bottom:20px;
+    }
+    .card-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; }
+    .card-header h3 { font-size:16px; font-weight:700; }
+    .card-header .badge {
+      background:var(--primary-glow); color:var(--primary); font-size:11px; font-weight:700;
+      padding:4px 10px; border-radius:20px;
+    }
+    table { width:100%; border-collapse:collapse; }
+    th { text-align:left; font-size:11px; color:var(--text3); font-weight:600; text-transform:uppercase;
+      letter-spacing:.5px; padding:10px 12px; border-bottom:1px solid var(--border); }
+    td { padding:12px; font-size:13px; color:var(--text2); border-bottom:1px solid var(--border); vertical-align:middle; }
+    tr:last-child td { border-bottom:none; }
+    tr:hover td { background:rgba(255,255,255,.02); }
+    .severity-badge {
+      padding:3px 10px; border-radius:20px; font-size:11px; font-weight:700; display:inline-block;
+    }
+    .severity-None { background:rgba(34,197,94,.12); color:#22c55e; }
+    .severity-Low { background:rgba(59,130,246,.12); color:#3b82f6; }
+    .severity-Moderate { background:rgba(245,158,11,.12); color:#f59e0b; }
+    .severity-High { background:rgba(239,68,68,.12); color:#ef4444; }
+    .confidence-bar { width:80px; height:6px; background:var(--surface2); border-radius:3px; display:inline-block; vertical-align:middle; }
+    .confidence-fill { height:100%; border-radius:3px; background:var(--gradient); }
+    .delete-btn {
+      background:none; border:1px solid rgba(239,68,68,.25); color:var(--error); padding:5px 12px;
+      border-radius:6px; font-size:11px; font-weight:600; cursor:pointer; transition:.15s;
+    }
+    .delete-btn:hover { background:rgba(239,68,68,.1); }
+    .user-avatar {
+      width:32px; height:32px; border-radius:10px; background:var(--primary-glow);
+      display:inline-flex; align-items:center; justify-content:center; font-weight:700;
+      font-size:13px; color:var(--primary); margin-right:10px; vertical-align:middle;
+    }
+    .empty-state { text-align:center; padding:40px; color:var(--text3); font-size:14px; }
+
+    /* ── Server Info ── */
+    .info-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:12px; }
+    .info-item { background:var(--surface2); border-radius:var(--radius-sm); padding:14px 16px; }
+    .info-item .info-label { font-size:11px; color:var(--text3); text-transform:uppercase; letter-spacing:.5px; }
+    .info-item .info-value { font-size:15px; font-weight:600; margin-top:4px; }
+
+    /* ── Sections ── */
+    .section { display:none; }
+    .section.active { display:block; }
+
+    /* ── Animations ── */
+    @keyframes fadeIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:none} }
+    .fade-in { animation:fadeIn .35s ease-out; }
+
+    /* ── Scrollbar ── */
+    ::-webkit-scrollbar { width:6px; }
+    ::-webkit-scrollbar-track { background:transparent; }
+    ::-webkit-scrollbar-thumb { background:var(--border); border-radius:3px; }
+
+    /* ── Responsive ── */
+    @media(max-width:768px) {
+      .sidebar { display:none; }
+      .main { margin-left:0; padding:16px; }
+      .stats-grid { grid-template-columns:1fr 1fr; }
+    }
+
+    /* ── Scan Image Thumbnail ── */
+    .scan-thumb { width:36px; height:36px; border-radius:8px; object-fit:cover; border:1px solid var(--border); vertical-align:middle; }
+
+    /* ── Loading Spinner ── */
+    .spinner { display:inline-block; width:18px; height:18px; border:2px solid var(--border);
+      border-top-color:var(--primary); border-radius:50%; animation:spin .6s linear infinite; }
+    @keyframes spin { to{transform:rotate(360deg)} }
+    .loading-overlay { display:flex; align-items:center; justify-content:center; padding:60px; }
+  </style>
+</head>
+<body>
+
+  <!-- Login Screen -->
+  <div id="loginOverlay">
+    <div class="login-card fade-in">
+      <div class="logo">🌿</div>
+      <h2>Admin Dashboard</h2>
+      <p>Enter the admin password to continue</p>
+      <div id="loginError" class="login-error">Invalid password. Try again.</div>
+      <input type="password" id="adminPasswordInput" placeholder="Admin password" autofocus>
+      <button class="login-btn" onclick="handleLogin()">Sign In</button>
+    </div>
+  </div>
+
+  <!-- Dashboard -->
+  <div class="app" id="dashboard" style="display:none;">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-icon">🌿</div>
+        <div><h1>CropGuard AI</h1><span>Admin Panel</span></div>
+      </div>
+      <div class="nav-item active" data-section="overview" onclick="switchSection(this,'overview')">
+        <div class="dot" style="background:var(--primary)"></div> Overview
+      </div>
+      <div class="nav-item" data-section="users" onclick="switchSection(this,'users')">
+        <div class="dot" style="background:var(--accent)"></div> Users
+      </div>
+      <div class="nav-item" data-section="scans" onclick="switchSection(this,'scans')">
+        <div class="dot" style="background:var(--warning)"></div> Scan History
+      </div>
+      <div class="nav-item" data-section="activity" onclick="switchSection(this,'activity')">
+        <div class="dot" style="background:var(--error)"></div> Login Activity
+      </div>
+      <div class="nav-item" data-section="server" onclick="switchSection(this,'server')">
+        <div class="dot" style="background:var(--text3)"></div> Server Info
+      </div>
+      <div class="sidebar-footer">
+        <button class="logout-btn" onclick="handleLogout()">⏻ &nbsp;Logout</button>
+      </div>
+    </aside>
+
+    <main class="main">
+      <!-- Overview Section -->
+      <section id="sec-overview" class="section active">
+        <h2 class="page-title">Dashboard Overview</h2>
+        <p class="page-subtitle">Real-time stats from your CropGuard AI backend</p>
+        <div class="stats-grid" id="statsGrid">
+          <div class="stat-card green"><div class="label">Total Users</div><div class="value" id="statUsers">—</div><div class="sub">Registered accounts</div></div>
+          <div class="stat-card blue"><div class="label">Total Scans</div><div class="value" id="statScans">—</div><div class="sub">Crop images analyzed</div></div>
+          <div class="stat-card yellow"><div class="label">Bookmarked</div><div class="value" id="statBookmarks">—</div><div class="sub">Saved reports</div></div>
+        </div>
+        <div class="card">
+          <div class="card-header"><h3>Top Detected Diseases</h3><span class="badge">AI Results</span></div>
+          <table><thead><tr><th>Disease</th><th>Occurrences</th></tr></thead><tbody id="topDiseasesBody"></tbody></table>
+        </div>
+        <div class="card">
+          <div class="card-header"><h3>Recent Users</h3></div>
+          <table><thead><tr><th>Name</th><th>Email</th><th>Joined</th></tr></thead><tbody id="recentUsersBody"></tbody></table>
+        </div>
+      </section>
+
+      <!-- Users Section -->
+      <section id="sec-users" class="section">
+        <h2 class="page-title">User Management</h2>
+        <p class="page-subtitle">View and manage all registered users</p>
+        <div class="card">
+          <div class="card-header"><h3>All Users</h3><span class="badge" id="userCountBadge">0</span></div>
+          <div id="usersTableWrap"><div class="loading-overlay"><div class="spinner"></div></div></div>
+        </div>
+      </section>
+
+      <!-- Scans Section -->
+      <section id="sec-scans" class="section">
+        <h2 class="page-title">Scan History</h2>
+        <p class="page-subtitle">All AI crop analysis results stored in the database</p>
+        <div class="card">
+          <div class="card-header"><h3>All Scans</h3><span class="badge" id="scanCountBadge">0</span></div>
+          <div id="scansTableWrap"><div class="loading-overlay"><div class="spinner"></div></div></div>
+        </div>
+      </section>
+
+      <!-- Activity Section -->
+      <section id="sec-activity" class="section">
+        <h2 class="page-title">Login & Registration Logs</h2>
+        <p class="page-subtitle">Track user authentication events and login attempts</p>
+        <div class="card">
+          <div class="card-header"><h3>Activity History</h3><span class="badge" id="activityCountBadge">0</span></div>
+          <div id="activityTableWrap"><div class="loading-overlay"><div class="spinner"></div></div></div>
+        </div>
+      </section>
+
+      <!-- Server Section -->
+      <section id="sec-server" class="section">
+        <h2 class="page-title">Server Information</h2>
+        <p class="page-subtitle">Backend health and runtime details</p>
+        <div class="card">
+          <div class="info-grid" id="serverInfoGrid"><div class="loading-overlay"><div class="spinner"></div></div></div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+<script>
+  let ADMIN_PASSWORD = '';
+  const API_BASE = window.location.origin + '/admin/api';
+
+  function headers() { return { 'x-admin-password': ADMIN_PASSWORD }; }
+
+  // ── Login ──
+  document.getElementById('adminPasswordInput').addEventListener('keydown', e => { if (e.key === 'Enter') handleLogin(); });
+
+  async function handleLogin() {
+    const pw = document.getElementById('adminPasswordInput').value.trim();
+    if (!pw) return;
+    ADMIN_PASSWORD = pw;
+    try {
+      const res = await fetch(API_BASE + '/stats', { headers: headers() });
+      if (!res.ok) throw new Error();
+      document.getElementById('loginOverlay').style.display = 'none';
+      document.getElementById('dashboard').style.display = 'flex';
+      loadOverview();
+    } catch {
+      document.getElementById('loginError').style.display = 'block';
+      ADMIN_PASSWORD = '';
+    }
+  }
+
+  function handleLogout() {
+    ADMIN_PASSWORD = '';
+    document.getElementById('dashboard').style.display = 'none';
+    document.getElementById('loginOverlay').style.display = 'flex';
+    document.getElementById('adminPasswordInput').value = '';
+    document.getElementById('loginError').style.display = 'none';
+  }
+
+  // ── Navigation ──
+  function switchSection(el, name) {
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    el.classList.add('active');
+    document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+    const sec = document.getElementById('sec-' + name);
+    sec.classList.add('active');
+    sec.classList.remove('fade-in');
+    void sec.offsetWidth;
+    sec.classList.add('fade-in');
+
+    if (name === 'overview') loadOverview();
+    else if (name === 'users') loadUsers();
+    else if (name === 'scans') loadScans();
+    else if (name === 'activity') loadLoginActivity();
+    else if (name === 'server') loadServerInfo();
+  }
+
+  // ── Overview ──
+  async function loadOverview() {
+    try {
+      const res = await fetch(API_BASE + '/stats', { headers: headers() });
+      const data = await res.json();
+      const s = data.stats;
+      document.getElementById('statUsers').textContent = s.totalUsers;
+      document.getElementById('statScans').textContent = s.totalScans;
+      document.getElementById('statBookmarks').textContent = s.bookmarkedScans;
+
+      const disBody = document.getElementById('topDiseasesBody');
+      disBody.innerHTML = s.topDiseases.length ? s.topDiseases.map(d =>
+        `<tr><td>${esc(d.issue_name)}</td><td>${d.count}</td></tr>`
+      ).join('') : '<tr><td colspan="2" class="empty-state">No scan data yet</td></tr>';
+
+      const usrBody = document.getElementById('recentUsersBody');
+      usrBody.innerHTML = s.recentUsers.length ? s.recentUsers.map(u =>
+        `<tr><td><span class="user-avatar">${esc(u.name[0])}</span>${esc(u.name)}</td><td>${esc(u.email)}</td><td>${fmtDate(u.created_at)}</td></tr>`
+      ).join('') : '<tr><td colspan="3" class="empty-state">No users yet</td></tr>';
+    } catch (e) { console.error(e); }
+  }
+
+  // ── Users ──
+  async function loadUsers() {
+    const wrap = document.getElementById('usersTableWrap');
+    wrap.innerHTML = '<div class="loading-overlay"><div class="spinner"></div></div>';
+    try {
+      const res = await fetch(API_BASE + '/users', { headers: headers() });
+      const data = await res.json();
+      document.getElementById('userCountBadge').textContent = data.users.length;
+      if (!data.users.length) { wrap.innerHTML = '<div class="empty-state">No users found</div>'; return; }
+      wrap.innerHTML = `<div style="overflow-x:auto"><table><thead><tr><th>User</th><th>Contact / Location</th><th>Farm Details</th><th>Bio</th><th>Scans</th><th>Joined</th><th>Action</th></tr></thead><tbody>${
+        data.users.map(u => `<tr id="user-${u.id}">
+          <td>
+            <span class="user-avatar">${esc(u.name[0])}</span>
+            <strong style="color:var(--text);">${esc(u.name)}</strong>
+            <div style="font-size:11px; color:var(--text3); margin-top:2px;">${esc(u.email)}</div>
+          </td>
+          <td>
+            <div style="font-size:12px;">📞 ${esc(u.phone || '—')}</div>
+            <div style="font-size:12px; margin-top:2px;">📍 ${esc(u.location || '—')}</div>
+          </td>
+          <td>
+            <div style="font-size:12px;">🌾 <strong>Crops:</strong> ${esc(u.primary_crop || '—')}</div>
+            <div style="font-size:12px; margin-top:2px;">💼 <strong>Exp:</strong> ${esc(u.experience || '—')}</div>
+            <div style="font-size:12px; margin-top:2px;">📐 <strong>Size:</strong> ${esc(u.farm_size || '—')}</div>
+          </td>
+          <td>
+            <div style="font-size:12px; max-width:200px; max-height:80px; overflow-y:auto; color:var(--text2); line-height:1.4; font-style:italic;">
+              ${esc(u.bio || 'No bio added.')}
+            </div>
+          </td>
+          <td>
+            <span class="severity-badge severity-Low" style="font-weight:600;">${u.scanCount} scans</span>
+          </td>
+          <td>${fmtDate(u.created_at)}</td>
+          <td><button class="delete-btn" onclick="deleteUser(${u.id})">Delete</button></td>
+        </tr>`).join('')
+      }</tbody></table></div>`;
+    } catch (e) { wrap.innerHTML = '<div class="empty-state">Failed to load users</div>'; }
+  }
+
+  async function deleteUser(id) {
+    if (!confirm('Delete this user and ALL their scans? This cannot be undone.')) return;
+    try {
+      await fetch(API_BASE + '/users/' + id, { method: 'DELETE', headers: headers() });
+      const row = document.getElementById('user-' + id);
+      if (row) row.remove();
+    } catch (e) { alert('Failed to delete user'); }
+  }
+
+  // ── Scans ──
+  async function loadScans() {
+    const wrap = document.getElementById('scansTableWrap');
+    wrap.innerHTML = '<div class="loading-overlay"><div class="spinner"></div></div>';
+    try {
+      const res = await fetch(API_BASE + '/scans', { headers: headers() });
+      const data = await res.json();
+      document.getElementById('scanCountBadge').textContent = data.scans.length;
+      if (!data.scans.length) { wrap.innerHTML = '<div class="empty-state">No scans found</div>'; return; }
+      wrap.innerHTML = `<div style="overflow-x:auto"><table><thead><tr><th>Image</th><th>Crop</th><th>Disease</th><th>Confidence</th><th>Severity</th><th>User</th><th>Date</th><th>Action</th></tr></thead><tbody>${
+        data.scans.map(s => `<tr id="scan-${CSS.escape(s.id)}"><td><img class="scan-thumb" src="${s.imagePath}" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2236%22 height=%2236%22><rect fill=%22%231a2236%22 width=%2236%22 height=%2236%22 rx=%228%22/><text x=%2218%22 y=%2222%22 text-anchor=%22middle%22 fill=%22%2364748b%22 font-size=%2214%22>🌱</text></svg>'"></td><td>${esc(s.cropName)}</td><td>${esc(s.issueName)}</td><td><span class="confidence-bar"><span class="confidence-fill" style="width:${Math.round(s.confidence*100)}%"></span></span> ${Math.round(s.confidence*100)}%</td><td><span class="severity-badge severity-${s.severity}">${s.severity}</span></td><td>${esc(s.userName)}</td><td>${fmtDate(s.dateTime)}</td><td><button class="delete-btn" onclick="deleteScan('${esc(s.id)}')">Delete</button></td></tr>`).join('')
+      }</tbody></table></div>`;
+    } catch (e) { wrap.innerHTML = '<div class="empty-state">Failed to load scans</div>'; }
+  }
+
+  async function deleteScan(id) {
+    if (!confirm('Delete this scan record?')) return;
+    try {
+      await fetch(API_BASE + '/scans/' + encodeURIComponent(id), { method: 'DELETE', headers: headers() });
+      loadScans();
+    } catch (e) { alert('Failed to delete scan'); }
+  }
+
+  // ── Login/Signup Activity ──
+  async function loadLoginActivity() {
+    const wrap = document.getElementById('activityTableWrap');
+    wrap.innerHTML = '<div class="loading-overlay"><div class="spinner"></div></div>';
+    try {
+      const res = await fetch(API_BASE + '/login-activity', { headers: headers() });
+      const data = await res.json();
+      document.getElementById('activityCountBadge').textContent = data.logs.length;
+      if (!data.logs.length) { wrap.innerHTML = '<div class="empty-state">No login or signup activities logged yet.</div>'; return; }
+      wrap.innerHTML = `<div style="overflow-x:auto"><table><thead><tr><th>User</th><th>Email</th><th>Action</th><th>IP Address</th><th>User Agent / Device</th><th>Timestamp</th></tr></thead><tbody>${
+        data.logs.map(l => {
+          const isRegister = l.action_type === 'REGISTER';
+          const badgeClass = isRegister ? 'severity-None' : 'severity-Low';
+          return `<tr><td><span class="user-avatar">${esc(l.user_name[0])}</span>${esc(l.user_name)}</td><td>${esc(l.user_email)}</td><td><span class="severity-badge ${badgeClass}">${esc(l.action_type)}</span></td><td><code>${esc(l.ip_address)}</code></td><td title="${esc(l.user_agent)}" style="max-width:260px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${esc(l.user_agent)}</td><td>${new Date(l.timestamp).toLocaleString('en-IN')}</td></tr>`;
+        }).join('')
+      }</tbody></table></div>`;
+    } catch (e) { wrap.innerHTML = '<div class="empty-state">Failed to load login activity logs</div>'; }
+  }
+
+  // ── Server Info ──
+  async function loadServerInfo() {
+    const grid = document.getElementById('serverInfoGrid');
+    grid.innerHTML = '<div class="loading-overlay"><div class="spinner"></div></div>';
+    try {
+      const res = await fetch(API_BASE + '/server-info', { headers: headers() });
+      const data = await res.json();
+      const i = data.info;
+      grid.innerHTML = [
+        ['Node Version', i.nodeVersion], ['Platform', i.platform], ['Uptime', i.uptime],
+        ['Memory Usage', i.memoryUsage], ['Environment', i.environment],
+        ['Database Host', i.dbHost], ['Database Name', i.dbName]
+      ].map(([l,v]) => `<div class="info-item"><div class="info-label">${l}</div><div class="info-value">${v}</div></div>`).join('');
+    } catch (e) { grid.innerHTML = '<div class="empty-state">Failed to load server info</div>'; }
+  }
+
+  // ── Helpers ──
+  function esc(s) { const d=document.createElement('div'); d.textContent=s||''; return d.innerHTML; }
+  function fmtDate(d) { try { return new Date(d).toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'}); } catch { return '—'; } }
+</script>
+</body>
+</html>
